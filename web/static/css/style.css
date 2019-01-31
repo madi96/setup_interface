@@ -1,0 +1,19 @@
+.centrage {
+    /* text-align:center; */
+    /* position:relative; */
+    /* margin:auto; */
+    /* clear:center; */
+    /* height:auto; */
+    /* z-index: 0; */
+    float:left;
+    margin-right:250px;
+}
+.left {
+    text-align: left;
+    position:relative;
+    margin:auto;
+    clear:left;
+    height:auto;
+    z-index: 0;
+    float:left;
+}
