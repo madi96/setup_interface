@@ -6,7 +6,7 @@ import rospy
 import argparse
 import operator
 from std_msgs.msg import String
-#from dream_setup_interface.msg import Position, State, Joystick
+# from setup_interface.msg import Position, State, Joystick
 
 
 class VideoCapture:
@@ -166,9 +166,6 @@ class InterfaceDetection:
         cv2.setMouseCallback('image', self.onMouseClick, [hsv_frame, area_type] )
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
-
-
 
     def setNbrOfMudules(self, nbr_of_modules):
         self.nbr_of_modules = nbr_of_modules
