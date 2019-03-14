@@ -325,7 +325,8 @@
        id="unhappy"
        inkscape:label="#unhappy"
        transform="matrix(1.0052796,0,0,1.0052796,1138.6763,94.7933)"
-       style="stroke:#000000;stroke-opacity:1">
+       style="stroke:#000000;stroke-opacity:1"
+       visibility="visible">
       <circle
          transform="matrix(0.20149604,0,0,0.20149604,2.2081555,50.230788)"
          id="circle3"
@@ -376,7 +377,8 @@
     <g
        id="happy"
        transform="matrix(0.45729092,0,0,0.45729092,1062.783,249.31944)"
-       style="stroke:#000000;stroke-opacity:1">
+       style="stroke:#000000;stroke-opacity:1"
+       visibility="hidden">
       <circle
          transform="matrix(0.44295807,0,0,0.44295807,171,-227.56882)"
          id="circle3025"
@@ -428,7 +430,8 @@
        id="smiling"
        inkscape:label="#smiling"
        transform="translate(996.8513,322.85676)"
-       style="stroke:#000000;stroke-opacity:1">
+       style="stroke:#000000;stroke-opacity:1"
+       visibility="hidden">
       <g
          id="g3898"
          style="stroke:#000000;stroke-opacity:1">
@@ -479,7 +482,8 @@
        id="sad"
        inkscape:label="#sad"
        transform="matrix(0.81748053,0,0,0.81748053,980.7714,177.27501)"
-       style="stroke:#000000;stroke-opacity:1">
+       style="stroke:#000000;stroke-opacity:1"
+       visibility="hidden">
       <circle
          transform="matrix(0.24778554,0,0,0.24778554,196,-39.07282)"
          id="circle3168"
