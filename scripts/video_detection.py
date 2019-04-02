@@ -6,8 +6,7 @@ import rospy
 import argparse
 import operator
 from std_msgs.msg import String
-# from setup_interface.msg import Position, State, Joystick
-
+from setup_interface.msg import Position, State, Joystick
 
 class VideoCapture:
     def __init__(self, video_source):
@@ -128,7 +127,7 @@ class VideoCapture:
 
 class InterfaceDetection:
     def __init__(self):
-        #self.pub_reward = rospy.Publisher('/activeInterface/reward', Position, queue_size=10)
+        self.pub_reward = rospy.Publisher('/activeInterface/reward', Position, queue_size=10)
         self.color_range_dict = {}
         self.video = None
         self.nbr_of_modules = None
@@ -146,13 +145,14 @@ class InterfaceDetection:
             self.selected_pixel =  frame[y, x].tolist()
 
             # set color
-            print "area_type", area_type
+            print "area_type*******************", area_type
             if area_type == "interface":
                 self.setInterfaceColorRange(self.selected_pixel)
-            elif area_type == "module":
+            elif area_type == "modules":
                 self.setModulesColorRange(self.selected_pixel)
             else:
                 self.setStatusColorRange(self.selected_pixel)
+
     @staticmethod
     def getColorRangefromHSV(hsv_values):
         lower_bound =  (max(hsv_values[0] - 5, 0), max(hsv_values[1] - 50, 0),  0)
@@ -174,7 +174,7 @@ class InterfaceDetection:
         self.color_range_dict["interface"] = self.getColorRangefromHSV(hsv_values)
 
     def setModulesColorRange(self, hsv_values):
-        self.color_range_dict["module"] = self.getColorRangefromHSV(hsv_values)
+        self.color_range_dict["modules"] = self.getColorRangefromHSV(hsv_values)
 
     def setStatusColorRange(self, hsv_values):
         self.color_range_dict["status"] = self.getColorRangefromHSV(hsv_values)
@@ -195,12 +195,13 @@ class InterfaceDetection:
         return detected_area_data
 
     def checkCalibration(self):
-        if set(['interface', 'module', 'status']).issubset(set(self.color_range_dict.keys())):
+        if set(['interface', 'modules', 'status']).issubset(set(self.color_range_dict.keys())):
             return True
         else:
             return False
 
     def testDetection(self, area_type):
+        print "--------------------area to be detected", area_type
         self.current_frame = self.video.getNextFrame()
         hsv_frame = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2HSV)
         frame=self.current_frame
@@ -208,13 +209,13 @@ class InterfaceDetection:
         # make sure to run the detection calibration process as follow
         # 1-interface 2-modules 3-status
         if area_type != "interface":
-            if area_type == "module":
+            if area_type == "modules":
                 if not "interface" in self.color_range_dict.keys() :
                     print "WARNING: Please make sure you to set interface color before"
                     return
 
             elif area_type == "status":
-                if not set(['interface', 'module']).issubset(set(self.color_range_dict.keys())):
+                if not set(['interface', 'modules']).issubset(set(self.color_range_dict.keys())):
                     print "WARNING: Please make sure you to set interface and modules colors  before"
                     return
 
@@ -272,8 +273,8 @@ class InterfaceDetection:
     def getModuleInfo(self, frame, hsv_frame, module_name):
         module_info = {"detected": False, "module_data":"", "status_data":""}
 
-        # locate the lever module within the designated area
-        module_area_dict = self.locateAreaOfIntrest(frame, hsv_frame, "module", module_name)
+        # locate the module within the designated area
+        module_area_dict = self.locateAreaOfIntrest(frame, hsv_frame, "modules", module_name)
         if module_area_dict["detected"]:
             x, y, w ,h = module_area_dict["detected_area_data"]
             hsv_module= hsv_frame[y:y + h, x:x + w]
@@ -323,9 +324,9 @@ class ModulesDetection(InterfaceDetection):
     def __init__(self):
         InterfaceDetection.__init__(self)
         # define modules states publishers
-        # self.pub_lever = rospy.Publisher('lever', Position, queue_size=10)
-        # self.pub_button = rospy.Publisher('button', State, queue_size=10)
-        # self.pub_joystick = rospy.Publisher('joystick', Joystick, queue_size=10)
+        self.pub_lever = rospy.Publisher('lever', Position, queue_size=10)
+        self.pub_button = rospy.Publisher('button', State, queue_size=10)
+        self.pub_joystick = rospy.Publisher('joystick', Joystick, queue_size=10)
 
     def getJoystickState(self, frame, hsv_frame):
         status_dict = {"name": "joystick",  "status": ""}
@@ -389,17 +390,17 @@ class ModulesDetection(InterfaceDetection):
         status_dict = {"name": "button",  "status": ""}
 
         button_info = self.getModuleInfo(frame, hsv_frame, status_dict["name"])
+        x, y, w ,h = button_info["module_data"]
         if button_info["detected"]:
-            x, y, w ,h = button_info["module_data"]
-            x_s, y_s, w_s, h_s = button_info["status_data"]
-
-            if w_s > w / 2:
-                status_dict["status"] = 'OFF'
-            else:
-                status_dict["status"] = 'ON'
+            # x_s, y_s, w_s, h_s = button_info["status_data"]
+            #
+            # if w_s > w / 2:
+            status_dict["status"] = 'OFF'
+        else:
+            status_dict["status"] = 'ON'
 
             # show button's state
-            cv2.putText(frame, status_dict["status"] , (x + w / 2, y + h / 2), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), 1,
+        cv2.putText(frame, status_dict["status"] , (x + w / 2, y + h / 2), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), 1,
                         cv2.LINE_AA)
 
         return status_dict
@@ -437,27 +438,27 @@ class ModulesDetection(InterfaceDetection):
                     reward_status_dict = self.getRewardState(reward_area, reward_area_hsv)
 
                     # Publish module state to the related topics
-                    # lever_msg = Position()
-                    # lever_msg.name = lever_status_dict["name"]
-                    # lever_msg.state = lever_status_dict["state"]
-                    # self.pub_lever.publish(lever_msg)
-                    #
-                    # button_msg = State()
-                    # button_msg.name = button_status_dict["name"]
-                    # button_msg.state = button_status_dict["state"]
-                    # #print(button_msg)
-                    # self.pub_button.publish(button_msg)
-                    #
-                    # joystick_msg = Joystick()
-                    # joystick_msg.name = joystick_status_dict["name"]
-                    # joystick_msg.position = joystick_status_dict["state"]
-                    # self.pub_joystick.publish(joystick_msg)
-                    #
-                    # reward_msg = Position()
-                    # reward_msg.name = reward_status_dict["name"]
-                    # reward_msg.state = reward_status_dict["state"]
-                    # #print(reward_msg)
-                    # self.pub_reward.publish(reward_msg)
+                    lever_msg = Position()
+                    lever_msg.name = lever_status_dict["name"]
+                    lever_msg.state = lever_status_dict["status"]
+                    self.pub_lever.publish(lever_msg)
+
+                    button_msg = State()
+                    button_msg.name = button_status_dict["name"]
+                    button_msg.state = button_status_dict["status"]
+                    #print(button_msg)
+                    self.pub_button.publish(button_msg)
+
+                    joystick_msg = Joystick()
+                    joystick_msg.name = joystick_status_dict["name"]
+                    joystick_msg.position = joystick_status_dict["status"]
+                    self.pub_joystick.publish(joystick_msg)
+
+                    reward_msg = Position()
+                    reward_msg.name = reward_status_dict["name"]
+                    reward_msg.state = reward_status_dict["status"]
+                    #print(reward_msg)
+                    self.pub_reward.publish(reward_msg)
 
                 else:
                     print "WARNING: The Best fit for the interface is no longer detected :( ..."
@@ -479,16 +480,269 @@ class ButtonsDetection(InterfaceDetection):
 
     def __init__(self):
         InterfaceDetection.__init__(self)
-        # self.pub_green_button = rospy.Publisher('button', State, queue_size=10)
-        # self.pub_square_green_button = rospy.Publisher('button', State, queue_size=10)
-        # self.pub_red_button = rospy.Publisher('button', State, queue_size=10)
-        # self.pub_yellow_button = rospy.Publisher('button', State, queue_size=10)
-        # self.pub_blue_button = rospy.Publisher('button', State, queue_size=10)
+        self.pub_green_button = rospy.Publisher('button', State, queue_size=10)
+        self.pub_square_green_button = rospy.Publisher('button', State, queue_size=10)
+        self.pub_red_button = rospy.Publisher('button', State, queue_size=10)
+        self.pub_yellow_button = rospy.Publisher('button', State, queue_size=10)
+        self.pub_blue_button = rospy.Publisher('button', State, queue_size=10)
+
+
+    def setRedColorRange(self, hsv_values):
+        self.color_range_dict["red"] = self.getColorRangefromHSV(hsv_values)
+
+    def setBlueColorRange(self, hsv_values):
+        self.color_range_dict["blue"] = self.getColorRangefromHSV(hsv_values)
+
+    def setYellowColorRange(self, hsv_values):
+        self.color_range_dict["yellow"] = self.getColorRangefromHSV(hsv_values)
+
+    def setGreenColorRange(self, hsv_values):
+        self.color_range_dict["green"] = self.getColorRangefromHSV(hsv_values)
+
+
+    def onMouseClick(self, event, x, y, flags, params):
+        frame = params[0]
+        area_type = params[1]
+        if event == cv2.EVENT_LBUTTONUP:
+            self.selected_pixel =  frame[y, x].tolist()
+
+            # set color
+            print "area_type*******************", area_type
+            if area_type == "interface":
+                self.setInterfaceColorRange(self.selected_pixel)
+            elif area_type == "modules":
+                self.setModulesColorRange(self.selected_pixel)
+            elif area_type == "reward":
+                self.setStatusColorRange(self.selected_pixel)
+            elif area_type == "redButton":
+                self.setRedColorRange(self.selected_pixel)
+            elif area_type == "blueButton":
+                self.setBlueColorRange(self.selected_pixel)
+            elif area_type == "greenButton":
+                self.setGreenColorRange(self.selected_pixel)
+            elif area_type == "yellowButton":
+                self.setYellowColorRange(self.selected_pixel)
+
+    def getButtonInfo(self, frame, hsv_frame, module_name, color):
+        module_info = {"detected": False, "module_data":"", "status_data":""}
+
+        # locate the module within the designated area
+        module_area_dict = self.locateAreaOfIntrest(frame, hsv_frame, "modules", module_name)
+        if module_area_dict["detected"]:
+            x, y, w ,h = module_area_dict["detected_area_data"]
+            hsv_module= hsv_frame[y:y + h, x:x + w]
+            rgb_module = frame[y:y + h, x:x + w]
+
+            module_info["module_data"] = x, y, w ,h
+
+            module_status_dict = self.locateAreaOfIntrest(rgb_module, hsv_module, color)
+            if module_status_dict["detected"]:
+                module_info["detected"] = True
+                module_info["status_data"] = module_status_dict["detected_area_data"]
+            else:
+                print "WARNING: The ",module_name,"'s status is no longer detected :( ..."
+        else:
+            print "WARNING: The ",module_name," module is no longer detected :( ..."
+
+        return module_info
+
+    def getButtonState(self, frame, hsv_frame, color):
+
+        status_dict = {"name": "button", "status": ""}
+
+        button_info = self.getButtonInfo(frame, hsv_frame, status_dict["name"],color)
+        x, y, w, h = button_info["module_data"]
+        status_dict["status"] = 'OFF'
+
+        if button_info["detected"]:
+            x_s, y_s, w_s, h_s = button_info["status_data"]
+
+            if w_s > w / 2:
+                status_dict["status"] = 'ON'
+
+        # show button's state
+        cv2.putText(frame, status_dict["status"], (x + w / 2, y + h / 2), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                    (0, 0, 0), 1,
+                    cv2.LINE_AA)
+
+        return status_dict
+
+    def runDetection(self):
+
+        if self.checkCalibration():
+
+            while True:
+                self.current_frame = self.video.getNextFrame()
+                hsv_frame = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2HSV)
+
+                # detect interface
+                interface_area_dict = self.locateAreaOfIntrest(self.current_frame, hsv_frame, "interface",
+                                                               "main Interface")
+                if interface_area_dict["detected"]:
+                    x, y, w, h = interface_area_dict["detected_area_data"]
+
+                    # define part of the frame where to detect the modules and the reward
+                    buttons_area = self.current_frame[y:y + h, x:x + 4 * w / 5]
+                    reward_area = self.current_frame[y:y + h, x + 4 * w / 5: x + w]
+                    buttons_area_hsv = hsv_frame[y:y + h, x:x + 4 * w / 5]
+                    reward_area_hsv = hsv_frame[y:y + h, x + 4 * w / 5: x + w]
+
+                    # get buttons status
+                    blue_button_status = self.getButtonState(buttons_area[h / 2:h, w / 2:w],
+                                                                   buttons_area_hsv[h / 2:h, w / 2:w], "blue")
+
+                    green_button_status = self.getButtonState(buttons_area[h / 2:h, 0:w / 2],
+                                                                   buttons_area_hsv[h / 2:h, 0:w / 2], "green")
+
+                    red_button_status = self.getButtonState(buttons_area[0:h / 2, 0:w / 2],
+                                                                   buttons_area_hsv[0:h / 2, 0:w / 2], "red")
+
+                    yellow_button_status = self.getButtonState(buttons_area[0:h / 2, w / 2:w],
+                                                                   buttons_area_hsv[0:h / 2, w / 2:w], "yellow")
+
+                    square_green_button_status = self.getButtonState(buttons_area[h / 4:3 * h / 4, w / 4:3 * w / 4],
+                                                                   buttons_area_hsv[h / 4:3 * h / 4, w / 4:3 * w / 4], "green")
+
+                    # get reward module's status
+                    reward_status_dict = self.getRewardState(reward_area, reward_area_hsv)
+
+                    blue_button_msg = State()
+                    blue_button_msg.name = "blue_button"
+                    blue_button_msg.state = blue_button_status
+                    print(blue_button_msg)
+                    self.pub_blue_button.publish(blue_button_msg)
+
+                    green_button_msg = State()
+                    green_button_msg.name = "green_button"
+                    green_button_msg.state = green_button_status
+                    print(green_button_msg)
+                    self.pub_green_button.publish(green_button_msg)
+
+                    red_button_msg = State()
+                    red_button_msg.name = "red_button"
+                    red_button_msg.state = red_button_status
+                    print(red_button_msg)
+                    self.pub_red_button.publish(red_button_msg)
+
+                    yellow_button_msg = State()
+                    yellow_button_msg.name =  "yellow_button"
+                    yellow_button_msg.state = yellow_button_status
+                    print(yellow_button_msg)
+                    self.pub_yellow_button.publish(yellow_button_msg)
+
+                    square_green_button_msg = State()
+                    square_green_button_msg.name = "square_green_button"
+                    square_green_button_msg.state = square_green_button_status
+                    print(square_green_button_msg)
+                    self.pub_square_green_button.publish(square_green_button_msg)
+
+                    reward_msg = Position()
+                    reward_msg.name = reward_status_dict["name"]
+                    reward_msg.state = reward_status_dict["status"]
+                    #print(reward_msg)
+                    self.pub_reward.publish(reward_msg)
+
+                else:
+                    print "WARNING: The Best fit for the interface is no longer detected :( ..."
+
+                cv2.imshow('Original feed', self.current_frame)
+                # cv2.imshow('Original feed', hsv_frame)
+
+                # if 'q' is pressed then exit the loop
+                if cv2.waitKey(33) == ord('q'):
+                    break
+
+            # Destroy all windows exit the program
+            cv2.destroyAllWindows()
+            self.video.stopVideoFeed()
+        else:
+            print "WARNING: Please make sur to select areas to be detected."
+
+
 
 class BoxDetection(InterfaceDetection):
 
     def __init__(self):
         InterfaceDetection.__init__(self)
-        #self.pub_box = rospy.Publisher('button', State, queue_size=10)
+        self.pub_box = rospy.Publisher('button', State, queue_size=10)
 
+
+    def getBoxState(self, frame, hsv_frame):
+
+        status_dict = {"name": "button", "status": ""}
+
+        box_info = self.getModuleInfo(frame, hsv_frame, status_dict["name"])
+        x, y, w, h = box_info["module_data"]
+        status_dict["status"] = 'Close'
+
+        if box_info["detected"]:
+            x_s, y_s, w_s, h_s = box_info["status_data"]
+
+            if w_s > w / 4:
+                status_dict["status"] = 'Open'
+
+        # show button's state
+        cv2.putText(frame, status_dict["status"], (x + w / 2, y + h / 2), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                    (0, 0, 0), 1,
+                    cv2.LINE_AA)
+
+        return status_dict
+
+    def runDetection(self):
+
+        if self.checkCalibration():
+
+            while True:
+                self.current_frame = self.video.getNextFrame()
+                hsv_frame = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2HSV)
+
+                # detect interface
+                interface_area_dict = self.locateAreaOfIntrest(self.current_frame, hsv_frame, "interface",
+                                                               "main Interface")
+                if interface_area_dict["detected"]:
+                    x, y, w, h = interface_area_dict["detected_area_data"]
+
+                    # define part of the frame where to detect the modules and the reward
+                    box_area = self.current_frame[y:y + h, x:x + 4 * w / 5]
+                    box_area_hsv = hsv_frame[y:y + h, x:x + 4 * w / 5]
+
+                    reward_area = self.current_frame[y:y + h, x + 4 * w / 5: x + w]
+                    reward_area_hsv = hsv_frame[y:y + h, x + 4 * w / 5: x + w]
+
+                    # Get the current state of each module
+                    box_status = self.getBoxState(box_area, box_area_hsv)
+
+
+                    # get reward module's status
+                    reward_status_dict = self.getRewardState(reward_area, reward_area_hsv)
+
+
+
+                    box_msg = State()
+                    box_msg.name = box_status['name']
+                    box_msg.state = box_status['status']
+                    #print(box_msg)
+                    self.pub_box.publish(box_msg)
+
+                    reward_msg = Position()
+                    reward_msg.name = reward_status_dict["name"]
+                    reward_msg.state = reward_status_dict["status"]
+                    #print(reward_msg)
+                    self.pub_reward.publish(reward_msg)
+
+                else:
+                    print "WARNING: The Best fit for the interface is no longer detected :( ..."
+
+                cv2.imshow('Original feed', self.current_frame)
+                # cv2.imshow('Original feed', hsv_frame)
+
+                # if 'q' is pressed then exit the loop
+                if cv2.waitKey(33) == ord('q'):
+                    break
+
+            # Destroy all windows exit the program
+            cv2.destroyAllWindows()
+            self.video.stopVideoFeed()
+        else:
+            print "WARNING: Please make sur to select areas to be detected."
 
