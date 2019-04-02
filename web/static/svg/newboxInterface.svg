@@ -33,9 +33,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.70710681"
-     inkscape:cx="1137.3323"
-     inkscape:cy="511.56472"
+     inkscape:zoom="0.35355341"
+     inkscape:cx="941.91605"
+     inkscape:cy="447.48746"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -312,7 +312,8 @@
        style="fill:#536c5d;fill-opacity:1;stroke:none" />
     <g
        id="reward"
-       transform="translate(2,-16.000066)">
+       transform="translate(2,-16.000066)"
+       style="fill:#710000;fill-opacity:1">
       <rect
          transform="translate(0,28.362183)"
          y="594"
@@ -320,7 +321,7 @@
          height="15"
          width="38"
          id="rect3085"
-         style="fill:#d40000;fill-opacity:1;stroke:none" />
+         style="fill:#710000;fill-opacity:1;stroke:none" />
       <ellipse
          ry="7.5"
          rx="1.5"
@@ -328,14 +329,14 @@
          cx="1168.5"
          transform="translate(2.4921875,28.362183)"
          id="path3099"
-         style="fill:#d40000;fill-opacity:1;stroke:none" />
+         style="fill:#710000;fill-opacity:1;stroke:none" />
       <ellipse
          ry="7.5"
          rx="1.5"
          cy="601.5"
          cx="1168.5"
          id="path3099-3"
-         style="fill:#d40000;fill-opacity:1;stroke:none"
+         style="fill:#710000;fill-opacity:1;stroke:none"
          transform="translate(40.507669,28.360871)" />
     </g>
     <path
